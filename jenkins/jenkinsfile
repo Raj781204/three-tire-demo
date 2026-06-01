@@ -1,51 +1,88 @@
 pipeline {
-  agent any
+    agent any
 
-  stages {
-
-    stage('Checkout') {
-      steps {
-        git 'https://github.com/Raj781204/three-tire-demo'
-      }
+    environment {
+        IMAGE_NAME = "dinesh781204/three-tier-app"
+        TAG = "${BUILD_NUMBER}"
     }
 
-    stage('Install Dependencies') {
-      steps {
-        sh 'cd backend && npm install'
-      }
-    }
+    stages {
 
-    stage('SonarQube Scan') {
-      steps {
-        withSonarQubeEnv('sonarqube') {
-          sh 'sonar-scanner'
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
         }
-      }
+
+        stage('Install Dependencies') {
+            steps {
+                sh 'cd backend && npm install'
+                sh 'cd frontend && npm install'
+            }
+        }
+
+        stage('Build') {
+            steps {
+                sh 'cd frontend && npm run build'
+            }
+        }
+
+        stage('Test') {
+            steps {
+                sh 'cd backend && npm test'
+            }
+        }
+
+        stage('SonarQube Analysis') {
+            steps {
+                withSonarQubeEnv('SonarQube') {
+                    sh 'sonar-scanner'
+                }
+            }
+        }
+
+        stage('Quality Gate') {
+            steps {
+                timeout(time: 2, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: true
+                }
+            }
+        }
+
+        stage('Docker Build') {
+            steps {
+                sh "docker-compose build"
+            }
+        }
+
+        stage('Docker Push') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                    sh '''
+                    echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
+                    docker-compose push
+                    '''
+                }
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                sh 'docker-compose down'
+                sh 'docker-compose up -d'
+            }
+        }
+
+        stage('Verify') {
+            steps {
+                sh 'docker ps'
+            }
+        }
     }
 
-    stage('Docker Build') {
-      steps {
-        sh 'docker build -t dinesh781204/backend:v1 -f docker/Dockerfile.backend .'
-        sh 'docker build -t dinesh781204/frontend:v1 -f docker/Dockerfile.frontend .'
-      }
+    post {
+        always {
+            cleanWs()
+        }
     }
-
-    stage('Docker Push') {
-      steps {
-        sh 'docker tag backend dinesh781204/backend:v1'
-        sh 'docker push dinesh781204/backend:v1'
-
-        sh 'docker tag frontend dinesh781204/frontend:v1'
-        sh 'docker push dinesh781204/frontend:v1'
-      }
-    }
-
-    stage('Deploy to Kubernetes') {
-      steps {
-        sh 'kubectl apply -f k8s/'
-      }
-    }
-
-  }
 }
-

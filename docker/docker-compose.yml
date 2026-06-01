@@ -5,7 +5,7 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile.backend
-    image: dinesh781204/backend:latest    
+    image: dinesh781204/three-tire:backend    
     ports:
       - "3002:3000"
 
@@ -13,7 +13,7 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile.frontend
-    image: dinesh781204/frontend:latest    
+    image: dinesh781204/three-tire:frontend    
     ports:
       - "8085:80"
 

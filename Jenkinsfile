@@ -14,17 +14,17 @@ pipeline {
             }
         }
 
-        // ✅ Debug (VERY IMPORTANT)
+        // ✅ Debug (keep this for now)
         stage('Debug Files') {
             steps {
                 sh 'pwd'
                 sh 'ls -l'
-                sh 'ls -l backend'
-                sh 'ls -l frontend'
+                sh 'ls -l backend || true'
+                sh 'ls -l frontend || true'
             }
         }
 
-        // ✅ Install Backend Dependencies ONLY
+        // ✅ Backend Dependencies
         stage('Install Backend Dependencies') {
             steps {
                 dir('backend') {
@@ -33,7 +33,7 @@ pipeline {
             }
         }
 
-        // ✅ Docker Build
+        // ✅ Docker Build (ONLY ONCE)
         stage('Docker Build') {
             steps {
                 dir('docker') {
@@ -42,7 +42,7 @@ pipeline {
             }
         }
 
-        // ✅ Docker Login & Push (OPTIONAL but correct way)
+        // ✅ Login & Push (NO BUILD HERE)
         stage('Docker Push') {
             steps {
                 withCredentials([usernamePassword(
@@ -52,14 +52,14 @@ pipeline {
                 )]) {
                     sh '''
                     echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
-                    docker push $DOCKER_USER/backend:v1
-                    docker push $DOCKER_USER/frontend:v1
+                    cd docker
+                    docker-compose push
                     '''
                 }
             }
         }
 
-        // ✅ Deploy Containers
+        // ✅ Deploy
         stage('Deploy') {
             steps {
                 dir('docker') {

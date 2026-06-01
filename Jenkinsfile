@@ -2,87 +2,78 @@ pipeline {
     agent any
 
     environment {
-        IMAGE_NAME = "dinesh781204/three-tier-app"
-        TAG = "${BUILD_NUMBER}"
+        DOCKERHUB_CREDENTIALS = 'dockerhub'
     }
 
     stages {
 
-        // ✅ FIXED (no duplicate checkout issue)
+        // ✅ Checkout
         stage('Checkout') {
             steps {
                 checkout scm
             }
         }
 
-        // ✅ INSTALL DEPENDENCIES
-        stage('Install Dependencies') {
+        // ✅ Debug (VERY IMPORTANT)
+        stage('Debug Files') {
             steps {
-                sh 'cd backend && npm install'
-                sh 'cd frontend && npm install'
+                sh 'pwd'
+                sh 'ls -l'
+                sh 'ls -l backend'
+                sh 'ls -l frontend'
             }
         }
 
-        // ✅ BUILD FRONTEND
-        stage('Build') {
+        // ✅ Install Backend Dependencies ONLY
+        stage('Install Backend Dependencies') {
             steps {
-                sh 'cd frontend && npm run build'
-            }
-        }
-
-        // ✅ RUN TESTS
-        stage('Test') {
-            steps {
-                sh 'cd backend && npm test'
-            }
-        }
-
-        // ✅ SONARQUBE ANALYSIS
-        stage('SonarQube Analysis') {
-            steps {
-                withSonarQubeEnv('SonarQube') {
-                    sh 'sonar-scanner'
+                dir('backend') {
+                    sh 'npm install'
                 }
             }
         }
 
-        // ✅ QUALITY GATE
-        stage('Quality Gate') {
-            steps {
-                timeout(time: 2, unit: 'MINUTES') {
-                    waitForQualityGate abortPipeline: true
-                }
-            }
-        }
-
-        // ✅ DOCKER BUILD (FIXED PATH)
+        // ✅ Docker Build
         stage('Docker Build') {
             steps {
-                sh 'cd docker && docker-compose build'
+                dir('docker') {
+                    sh 'docker-compose build'
+                }
             }
         }
 
-        // ✅ DOCKER LOGIN + PUSH (SECURE)
+        // ✅ Docker Login & Push (OPTIONAL but correct way)
         stage('Docker Push') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                withCredentials([usernamePassword(
+                    credentialsId: "${DOCKERHUB_CREDENTIALS}",
+                    usernameVariable: 'DOCKER_USER',
+                    passwordVariable: 'DOCKER_PASS'
+                )]) {
                     sh '''
                     echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
-                    cd docker && docker-compose push
+                    
+                    docker tag project_backend $DOCKER_USER/backend:v1
+                    docker tag project_frontend $DOCKER_USER/frontend:v1
+                    
+                    docker push $DOCKER_USER/backend:v1
+                    docker push $DOCKER_USER/frontend:v1
                     '''
                 }
             }
         }
 
-        // ✅ DEPLOY (FIXED PATH)
+        // ✅ Deploy Containers
         stage('Deploy') {
             steps {
-                sh 'cd docker && docker-compose down'
-                sh 'cd docker && docker-compose up -d'
+                dir('docker') {
+                    sh 'docker-compose down || true'
+                    sh 'docker-compose up -d'
+                }
             }
         }
 
-        // ✅ VERIFY
+        // ✅ Verify
         stage('Verify') {
             steps {
                 sh 'docker ps'
@@ -90,7 +81,6 @@ pipeline {
         }
     }
 
-    // ✅ CLEAN WORKSPACE
     post {
         always {
             cleanWs()

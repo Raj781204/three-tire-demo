@@ -1,0 +1,51 @@
+pipeline {
+  agent any
+
+  stages {
+
+    stage('Checkout') {
+      steps {
+        git 'https://github.com/Raj781204/three-tire-demo'
+      }
+    }
+
+    stage('Install Dependencies') {
+      steps {
+        sh 'cd backend && npm install'
+      }
+    }
+
+    stage('SonarQube Scan') {
+      steps {
+        withSonarQubeEnv('sonarqube') {
+          sh 'sonar-scanner'
+        }
+      }
+    }
+
+    stage('Docker Build') {
+      steps {
+        sh 'docker build -t dinesh781204/backend:v1 -f docker/Dockerfile.backend .'
+        sh 'docker build -t dinesh781204/frontend:v1 -f docker/Dockerfile.frontend .'
+      }
+    }
+
+    stage('Docker Push') {
+      steps {
+        sh 'docker tag backend dinesh781204/backend:v1'
+        sh 'docker push dinesh781204/backend:v1'
+
+        sh 'docker tag frontend dinesh781204/frontend:v1'
+        sh 'docker push dinesh781204/frontend:v1'
+      }
+    }
+
+    stage('Deploy to Kubernetes') {
+      steps {
+        sh 'kubectl apply -f k8s/'
+      }
+    }
+
+  }
+}
+

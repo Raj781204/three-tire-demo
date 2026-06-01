@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>DevOps Project</title>
+</head>
+<body>
+
+<h1>Raj DevOps Project 🚀</h1>
+
+<button onclick="callAPI()">Call Backend</button>
+
+<p id="output"></p>
+
+<script>
+function callAPI() {
+    fetch('http://backend-service:3000')
+    .then(res => res.text())
+    .then(data => {
+        document.getElementById("output").innerText = data;
+    })
+    .catch(err => console.log(err));
+}
+</script>
+
+</body>
+</html>

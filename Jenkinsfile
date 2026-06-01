@@ -52,10 +52,6 @@ pipeline {
                 )]) {
                     sh '''
                     echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
-                    
-                    docker tag project_backend $DOCKER_USER/backend:v1
-                    docker tag project_frontend $DOCKER_USER/frontend:v1
-                    
                     docker push $DOCKER_USER/backend:v1
                     docker push $DOCKER_USER/frontend:v1
                     '''
